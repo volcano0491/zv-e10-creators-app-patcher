@@ -1,0 +1,50 @@
+name: Build Patched Creators App for ZV-E10
+
+on:
+  workflow_dispatch:
+    inputs:
+      xapk_url:
+        description: 'Dán link tải trực tiếp file Creators App 3.5.0.xapk (hoặc để trống nếu đã upload file lên repo)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Tải mã nguồn dự án
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Java 17 và Apktool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk apktool unzip zip wget
+
+      - name: Thiết lập Android Build-Tools 35.0.0
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;35.0.0'
+
+      - name: Lấy file Creators' App_3.5.0.xapk đầu vào
+        run: |
+          if [ -n "${{ github.event.inputs.xapk_url }}" ]; then
+            wget -O "Creators' App_3.5.0.xapk" "${{ github.event.inputs.xapk_url }}"
+          fi
+          if [ ! -f "Creators' App_3.5.0.xapk" ]; then
+            echo "Lỗi: Không tìm thấy file Creators' App_3.5.0.xapk!"
+            exit 1
+          fi
+
+      - name: Chạy script vá lỗi cho ZV-E10
+        run: |
+          export PATH="$PATH:$ANDROID_HOME/build-tools/35.0.0"
+          chmod +x ./patcher/patch.sh
+          mkdir -p out
+          ./patcher/patch.sh "Creators' App_3.5.0.xapk" out/
+
+      - name: Đóng gói file thành phẩm để tải về
+        uses: actions/upload-artifact@v4
+        with:
+          name: CreatorsApp_3.5.0_ZV-E10_Patched
+          path: out/*.xapk
